@@ -58,6 +58,12 @@ def truncate_messages(messages, max_tokens=6000):
 # Streamlit app layout
 st.title("JYLA (Just Your Lazy AI)")
 
+# Button to refresh chat and delete history
+if st.button("Refresh Chat"):
+    st.session_state.messages = [{'role': 'assistant', 'content': "How can I help you today?"}]
+    st.session_state.prev_response = ""
+    st.rerun()
+
 # Display chat messages from history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -109,10 +115,12 @@ if prompt := st.chat_input("You:"):
             status.update(label="Research complete!", state="complete", expanded=False)
 
     else:
-        query = f"Please answer this question:\n\n {prompt}\n\n Based on this interaction between the user and AI assistant: {message_history}"
-        response = ollama.chat(model='llama3:instruct', messages=[{'role': 'user', 'content': query}], stream=False)
-        st.session_state.prev_response = str(response['message']['content'])
-        st.session_state.messages.append({'role': 'assistant', 'content': st.session_state.prev_response})
+        with st.status("Analyzing...", expanded=True) as status:
+            query = f"Please answer this question:\n\n {prompt}\n\n Based on this interaction between the user and AI assistant: {message_history}"
+            response = ollama.chat(model='llama3:instruct', messages=[{'role': 'user', 'content': query}], stream=False)
+            st.session_state.prev_response = str(response['message']['content'])
+            st.session_state.messages.append({'role': 'assistant', 'content': st.session_state.prev_response})
+            status.update(label="Analysis complete!", state="complete", expanded=False)
 
     # Display the assistant's response
     with st.chat_message("assistant"):
