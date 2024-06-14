@@ -23,6 +23,8 @@ if "messages" not in st.session_state:
     st.session_state.messages = [{'role': 'assistant', 'content': "How can I help you today?"}]
 if "prev_response" not in st.session_state:
     st.session_state.prev_response = ""
+if "use_internet" not in st.session_state:
+    st.session_state.use_internet = False
 
 # Helper functions
 def extract_confidence(string):
@@ -58,6 +60,9 @@ def truncate_messages(messages, max_tokens=6000):
 # Streamlit app layout
 st.title("JYLA (Just Your Lazy AI)")
 
+# Checkbox to toggle internet usage
+st.session_state.use_internet = st.checkbox("Use Internet", value=st.session_state.use_internet)
+
 # Button to refresh chat and delete history
 if st.button("Refresh Chat"):
     st.session_state.messages = [{'role': 'assistant', 'content': "How can I help you today?"}]
@@ -85,7 +90,7 @@ if prompt := st.chat_input("You:"):
     confidence_match = extract_confidence(str(confidence_response))
     confidence = int(confidence_match[0])
 
-    if confidence < 80:
+    if confidence < 80 and st.session_state.use_internet:
         with st.status("Researching...", expanded=True) as status:
             st.write("Searching for data...")
             search_prompt = f"Based on this context:\n\n{st.session_state.prev_response}\n\n Please generate a generic search engine query (with no filters) for this question:\n\n{prompt}. Respond with the search engine query and nothing else"
