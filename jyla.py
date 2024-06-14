@@ -7,6 +7,7 @@ from llama_index.readers.web import SimpleWebPageReader
 import html2text
 import ollama
 import re
+import tiktoken
 
 # Initialize settings and models
 Settings.llm = llm = Ollama(model="llama3:instruct", request_timeout=120.0, temperature=0.1)
@@ -17,6 +18,9 @@ Settings.embed_model = ollama_embedding = OllamaEmbedding(
 )
 h = html2text.HTML2Text()
 h.ignore_links = True
+
+# Initialize the encoding for the model you're using
+encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
 
 # Initialize session state
 if "messages" not in st.session_state:
@@ -39,7 +43,23 @@ def convert_messages_to_string(messages):
     return message_history
 
 def estimate_token_count(text):
-    return len(text.split())
+    """
+    Count the number of tokens in a single message dictionary.
+    """
+    role = message['role']
+    content = message['content']
+    
+    # Encode the message content to get the token ids
+    token_ids_content = encoding.encode(content)
+    token_ids_role = encoding.encode(role)
+    
+    # Add 4 tokens for the sequence identifiers (e.g. <|endoftext|>)
+    num_tokens = len(token_ids_content + token_ids_role) + 4
+    
+    # Add 2 tokens for the role identifier
+    num_tokens += 2
+    
+    return num_tokens
 
 def truncate_messages(messages, max_tokens=6000):
     total_tokens = 0
@@ -75,19 +95,20 @@ for message in st.session_state.messages:
 
 # Accept user input
 if prompt := st.chat_input("You:"):
+    
     st.session_state.messages.append({'role': 'user', 'content': prompt})
     # Display the user's message immediately
     with st.chat_message("user"):
-        st.markdown(prompt)
+        st.write(prompt)
     
     st.session_state.messages = truncate_messages(st.session_state.messages)
     message_history = convert_messages_to_string(st.session_state.messages)
-    
+    with st.status("Processing...", expanded=False) as status:
     # Generate confidence score
-    confidence_prompt = f"Please provide a confidence score from 1-100 about how well you can answer this question\n\n{prompt}\n\n based on the interaction between a large language model and user. Only provide the confidence score and nothing else:\n\n{message_history}"
-    confidence_response = llm.complete(confidence_prompt)
-    confidence_match = extract_confidence(str(confidence_response))
-    confidence = int(confidence_match[0])
+        confidence_prompt = f"Please provide a confidence score from 1-100 about how well you can answer this question\n\n{prompt}\n\n based on the interaction between a large language model and user. Only provide the confidence score and nothing else:\n\n{message_history}"
+        confidence_response = llm.complete(confidence_prompt)
+        confidence_match = extract_confidence(str(confidence_response))
+        confidence = int(confidence_match[0])
 
     if confidence < 80 and st.session_state.use_internet:
         with st.status("Researching...", expanded=True) as status:
