@@ -24,7 +24,15 @@ To run JYLA locally, follow these steps:
     pip install -r requirements.txt
     ```
 
-3. **Run the Streamlit app**:
+3. **Install Ollama and download llama3:instruct**:
+
+    [Install Ollama](https://ollama.com/) and download your desired large language model.  The model used by JYLA is [llama3:instruct](https://ollama.com/library/llama3:instruct).  This model can be download from the command line:
+
+    ```sh
+    ollama pull llama3:instruct
+    ``` 
+
+4. **Run the Streamlit app**:
     ```sh
     streamlit run jyla.py
     ```
