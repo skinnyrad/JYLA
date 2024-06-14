@@ -60,14 +60,13 @@ def truncate_messages(messages, max_tokens=6000):
 # Streamlit app layout
 st.title("JYLA (Just Your Lazy AI)")
 
-# Checkbox to toggle internet usage
-st.session_state.use_internet = st.checkbox("Use Internet", value=st.session_state.use_internet)
-
-# Button to refresh chat and delete history
-if st.button("Refresh Chat"):
-    st.session_state.messages = [{'role': 'assistant', 'content': "How can I help you today?"}]
-    st.session_state.prev_response = ""
-    st.rerun()
+# Sidebar for refresh chat button and internet usage checkbox
+with st.sidebar:
+    st.session_state.use_internet = st.checkbox("Use Internet", value=st.session_state.use_internet)
+    if st.button("Refresh Chat"):
+        st.session_state.messages = [{'role': 'assistant', 'content': "How can I help you today?"}]
+        st.session_state.prev_response = ""
+        st.rerun()
 
 # Display chat messages from history
 for message in st.session_state.messages:
