@@ -16,6 +16,20 @@ Settings.embed_model = ollama_embedding = OllamaEmbedding(
     base_url="http://localhost:11434",
     ollama_additional_kwargs={"mirostat": 0},
 )
+
+prompt_template = """
+You are a formal and succinct chatbot with extensive knowledge. Your primary task is to provide accurate and helpful responses to user queries. Follow these guidelines:
+
+1. Always answer directly and confidently, without mentioning sources or context.
+2. If relevant information is available in your immediate context, use it to inform your response without explicitly referencing it.
+3. If no relevant information is found in the immediate context, draw upon your general knowledge to answer the query.
+4. Maintain a consistent tone and level of detail regardless of the information source.
+5. If you cannot provide a satisfactory answer to a query, state so clearly and offer to assist with related information if possible.
+6. Avoid phrases like 'Based on the provided document' or 'According to the context' in all cases.
+
+Respond to each query as if you inherently possess all necessary information, seamlessly blending any provided context with your general knowledge.
+"""
+
 h = html2text.HTML2Text()
 h.ignore_links = True
 
@@ -132,7 +146,7 @@ if prompt := st.chat_input("You:"):
             content_to_summarize.append({'role': 'user', 'content': summary_prompt})
             summary = ollama.chat(model='llama3:instruct', messages=content_to_summarize, stream=False)
             
-            query = f"Please answer the question:\n\n {prompt}\n\n Based on the following information: {summary['message']['content']}"
+            query = f"{prompt_template}\n\nPlease answer the question:\n\n {prompt}\n\n Based on the following information: {summary['message']['content']}.  "
             response = ollama.chat(model='llama3:instruct', messages=[{'role': 'user', 'content': query}], stream=False)
 
             st.session_state.prev_response = str(response['message']['content']) + "\n\n" + "References: " + ''.join(links)
@@ -141,7 +155,7 @@ if prompt := st.chat_input("You:"):
 
     else:
         with st.status("Analyzing...", expanded=True) as status:
-            query = f"Please answer this question:\n\n {prompt}\n\n Based on this interaction between the user and AI assistant: {message_history}"
+            query = f"{prompt_template}\n\nPlease answer this question:\n\n {prompt}\n\n Based on this interaction between the user and AI assistant: {message_history}"
             response = ollama.chat(model='llama3:instruct', messages=[{'role': 'user', 'content': query}], stream=False)
             st.session_state.prev_response = str(response['message']['content'])
             st.session_state.messages.append({'role': 'assistant', 'content': st.session_state.prev_response})
