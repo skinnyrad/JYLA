@@ -1,6 +1,7 @@
 import streamlit as st
 from llama_index.llms.ollama import Ollama
-from duckduckgo_search import DDGS
+from llama_index.core.agent import ReActAgent
+from llama_index.tools.duckduckgo import DuckDuckGoSearchToolSpec
 from llama_index.core import Settings
 from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.readers.web import SimpleWebPageReader
@@ -17,6 +18,13 @@ Settings.embed_model = ollama_embedding = OllamaEmbedding(
     ollama_additional_kwargs={"mirostat": 0},
 )
 
+# Initialize the DuckDuckGo search tool
+duckduckgo_tool_spec = DuckDuckGoSearchToolSpec()
+duckduckgo_tools = duckduckgo_tool_spec.to_tool_list()
+# Create the agent
+agent = ReActAgent.from_tools(duckduckgo_tools, llm=llm, verbose=True)
+
+# Prompt Template
 prompt_template = """
 You are a formal and succinct chatbot with extensive knowledge. Your primary task is to provide accurate and helpful responses to user queries. Follow these guidelines:
 
@@ -105,7 +113,10 @@ with st.sidebar:
 # Display chat messages from history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+        if message["role"] == 'assistant':
+            st.write(message["content"])
+        else:
+            st.text(message["content"])
 
 # Accept user input
 if prompt := st.chat_input("You:"):
@@ -113,43 +124,29 @@ if prompt := st.chat_input("You:"):
     st.session_state.messages.append({'role': 'user', 'content': prompt})
     # Display the user's message immediately
     with st.chat_message("user"):
-        st.write(prompt)
+        st.text(prompt)
     
     st.session_state.messages = truncate_messages(st.session_state.messages)
     message_history = convert_messages_to_string(st.session_state.messages)
-    with st.status("Processing...", expanded=False) as status:
+    #with st.status("Processing...", expanded=False) as status:
     # Generate confidence score
-        confidence_prompt = f"Please provide a confidence score from 1-100 about how well you can answer this question\n\n{prompt}\n\n based on the interaction between a large language model and user. Only provide the confidence score and nothing else:\n\n{message_history}"
-        confidence_response = llm.complete(confidence_prompt)
-        confidence_match = extract_confidence(str(confidence_response))
-        confidence = int(confidence_match[0])
+    #    confidence_prompt = f"Please provide a confidence score from 1-100 about how well you can answer this question\n\n{prompt}\n\n based on the interaction between a large language model and user. Only provide the confidence score and nothing else:\n\n{message_history}"
+    #    confidence_response = llm.complete(confidence_prompt)
+    #    confidence_match = extract_confidence(str(confidence_response))
+    #    confidence = int(confidence_match[0])
 
-    if confidence < 80 and st.session_state.use_internet:
+    if st.session_state.use_internet:
         with st.status("Researching...", expanded=True) as status:
             st.write("Searching for data...")
-            search_prompt = f"Based on this context:\n\n{st.session_state.prev_response}\n\n Please generate a generic search engine query (with no filters) for this question:\n\n{prompt}. Respond with the search engine query and nothing else"
-            web_query = str(llm.complete(search_prompt))
-            results = DDGS().text(web_query.replace("'", "").replace('"', "").replace("\\", ""), max_results=1)
-            st.write("Found URL.")
-            links = []
-            content_to_summarize = []
-            for result in results:
-                if 'href' in result:
-                    links.append(result['href'])
+            search_prompt = f"Please rephrase this question so that it can be process by an AI language model:\n\n{prompt}. Based on this interaction between the user and AI assistant: {message_history}\n\nAnswer with the rephrased question and nothing else."
+            rephrased_query = str(llm.complete(search_prompt))
+            print(rephrased_query)
             try:
-                web_info = SimpleWebPageReader().load_data(links)
-                web_content = h.handle(web_info[0].text)
+                results = agent.query(rephrased_query)
             except:
-                web_content = ""
+                results = "Could not process query.  Please try again..."
             st.write("Analyzing Data...")
-            summary_prompt = f"Please answer this question\n\n {prompt}\n\n based on the provided context I found from a website:\n\nContext:\n\n{web_content}"
-            content_to_summarize.append({'role': 'user', 'content': summary_prompt})
-            summary = ollama.chat(model='llama3:instruct', messages=content_to_summarize, stream=False)
-            
-            query = f"{prompt_template}\n\nPlease answer the question:\n\n {prompt}\n\n Based on the following information: {summary['message']['content']}.  "
-            response = ollama.chat(model='llama3:instruct', messages=[{'role': 'user', 'content': query}], stream=False)
-
-            st.session_state.prev_response = str(response['message']['content']) + "\n\n" + "References: " + ''.join(links)
+            st.session_state.prev_response = str(results)
             st.session_state.messages.append({'role': 'assistant', 'content': st.session_state.prev_response})
             status.update(label="Research complete!", state="complete", expanded=False)
 
@@ -163,4 +160,4 @@ if prompt := st.chat_input("You:"):
 
     # Display the assistant's response
     with st.chat_message("assistant"):
-        st.markdown(st.session_state.prev_response)
+        st.write(st.session_state.prev_response)
