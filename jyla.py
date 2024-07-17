@@ -4,8 +4,6 @@ from llama_index.core.agent import ReActAgent
 from llama_index.tools.duckduckgo import DuckDuckGoSearchToolSpec
 from llama_index.core import Settings
 from llama_index.embeddings.ollama import OllamaEmbedding
-from llama_index.readers.web import SimpleWebPageReader
-import html2text
 import ollama
 import re
 import tiktoken
@@ -38,8 +36,6 @@ You are a formal and succinct chatbot with extensive knowledge. Your primary tas
 Respond to each query as if you inherently possess all necessary information, seamlessly blending any provided context with your general knowledge.
 """
 
-h = html2text.HTML2Text()
-h.ignore_links = True
 
 # Initialize the encoding for the model you're using
 encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
