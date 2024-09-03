@@ -1,7 +1,7 @@
-llama_index==0.10.55
-ollama==0.2.1
-streamlit==1.35.0
-tiktoken==0.7.0
+llama_index
+ollama
+streamlit
+tiktoken
 llama-index-llms-ollama
 llama-index-tools-duckduckgo
 llama-index-embeddings-ollama
