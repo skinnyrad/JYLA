@@ -1,63 +1,77 @@
 # JYLA (Just Your Lazy AI)
 
-JYLA is a local Chatbot application that allows you to interact with a large language model while keeping your data private. It also has the ability to check the web for questions that require up-to-date answers.
+**JYLA** is a Streamlit application designed to facilitate interaction with documents through an AI chatbot. It supports various document types including PDF, DOCX, JSON, CSV, Markdown, and plain text, allowing users to ask questions about the document's content.
 
 ## Features
 
-- **Private Interaction**: Communicate with a large language model without compromising your data privacy.
-- **Modern RAG and AI Technologies**: JYLA was built using llamaindex, Ollama, and llama3.
-- **Web Integration**: Optionally search the web for the most current information to answer your questions.
-- **Streamlit Interface**: User-friendly interface built with Streamlit.
+- **Document Processing**: Supports multiple file formats for document upload.
+- **Chatbot Interface**: Users can ask questions about the document content.
+- **Model Selection**: Allows selection of different Ollama models for both language processing and embeddings.
+- **Session Management**: Keeps track of chat history and document processing state.
 
-## Installation
+## Setup
 
-To run JYLA locally, follow these steps:
+### Prerequisites
 
-1. **Clone the repository**:
-    ```sh
-    git clone https://github.com/skinnyrad/JYLA
-    cd JYLA
-    ```
+- Python 3.8+
+- Streamlit
+- PyMuPDF (fitz)
+- langchain libraries
+- Ollama server running on `localhost:11434`
 
-2. **Install the required dependencies**:
-    ```sh
-    pip install -r requirements.txt
-    ```
+### Installation
 
-3. **Install Ollama and download llama3:instruct**:
+1. **Install Python Packages**:
+   ```
+   pip install streamlit PyMuPDF langchain langchain_community requests
+   ```
 
-    [Install Ollama](https://ollama.com/) and download your desired large language model.  The model used by JYLA is [llama3:instruct](https://ollama.com/library/llama3:instruct).  This model can be download from the command line:
+2. **Ensure Ollama Server is Running**:
+   - Download and install Ollama from [Ollama's official site](https://ollama.ai/).
+   - Start the Ollama server:
+     ```
+     ollama serve
+     ```
 
-    ```sh
-    ollama pull llama3:instruct
-    ``` 
-
-4. **Run the Streamlit app**:
-    ```sh
-    streamlit run jyla.py
-    ```
-
-![JYLA-Main](./img/jyla-main.png)
+3. **Run the Application**:
+   ```
+   streamlit run your_script_name.py
+   ```
 
 ## Usage
 
-1. **Start the Application**: Open your browser and navigate to `http://localhost:8501` to access the JYLA interface.
-2. **Interact with the AI**: Type your questions in the chat input and receive responses from the AI.
-3. **Use Internet Option**: Click the "Use Internet" checkbox in the sidebar to allow the AI to search the web for up-to-date information if it is not confident in its pretrained knowledge.
-4. **Refresh Chat**: Use the "Refresh Chat" button in the sidebar to reset the conversation.
+1. **Upload a Document**: Use the file uploader to select and upload your document.
 
-## Contributing
+2. **Select Models**: From the sidebar, choose the LLM and embedding models you wish to use.
 
-Contributions are welcome! Please open an issue or submit a pull request for any improvements or bug fixes.
+3. **Chat with the Document**: 
+   - Type your question in the chat input box.
+   - JYLA will respond based on the document's content.
+
+4. **Reset Chat**: Use the reset button in the sidebar to clear the chat history and unload the current document.
+
+## Code Structure
+
+- **Imports**: Necessary libraries for Streamlit, document processing, and AI functionalities.
+- **Functions**:
+  - `reset_chat()`: Clears session state related to chat and document processing.
+  - `get_ollama_models()`: Fetches available models from the Ollama server.
+  - `process_uploaded_file()`: Handles different file types for document extraction.
+- **Streamlit UI**: 
+  - Title and file uploader setup.
+  - Sidebar for model selection and reset functionality.
+  - Chat interface for user interaction.
+
+## Notes
+
+- Ensure that the Ollama server is accessible at `localhost:11434`. If running on a different port or host, adjust the `requests.get` URL in `get_ollama_models()`.
+- The application uses session state to manage document processing and chat history, which persists across reruns of the Streamlit app.
+
+## Troubleshooting
+
+- **Model Not Found**: If no models are listed, check if the Ollama server is running and accessible.
+- **File Processing Errors**: Ensure the file types are supported and the files are not corrupted.
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-## Acknowledgements
-
-- [Streamlit](https://streamlit.io/)
-- [Llamaindex](https://www.llamaindex.ai/)
-- [Ollama](https://ollama.com/)
-- [DuckDuckGo Search](https://duckduckgo.com/)
-- [html2text](https://github.com/Alir3z4/html2text)
+This project is open-sourced under the MIT license. See the LICENSE file for more details.
