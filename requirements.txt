@@ -1,7 +1,8 @@
-llama_index
-ollama
 streamlit
-tiktoken
-llama-index-llms-ollama
-llama-index-tools-duckduckgo
-llama-index-embeddings-ollama
+requests
+pyMuPDF
+langchain
+langchain-community
+langchain-text-splitters
+faiss-cpu
+docx2txt
