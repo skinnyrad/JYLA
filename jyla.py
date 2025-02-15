@@ -83,8 +83,8 @@ if "selected_embedding" not in st.session_state:
     )
 
 # Streamlit UI
-st.title("📄 Document Chatbot")
-st.subheader("Upload a PDF, Word, JSON, CSV, Markdown or text file to chat with your document")
+st.title("JYLA (Just Your Lazy AI)")
+st.subheader("Upload a file")
 
 # Model selection sidebar
 with st.sidebar:
@@ -141,19 +141,27 @@ if uploaded_file and not st.session_state.vector_store:
         )
     st.success("Document processed! Start chatting below")
 
-# Chat interface
+# Chat Interface
 if prompt := st.chat_input("Ask about your document"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    
-    # Show thinking status while processing
     with st.spinner("Thinking..."):
+        # Append the user's new question
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        
+        # If there's a previous conversation, append it to the prompt
+        if len(st.session_state.messages) > 1:
+            previous_conversation = "\n".join([f"{msg['role']}: {msg['content']}" for msg in st.session_state.messages[:-1]])
+            prompt = f"{previous_conversation}\nUser: {prompt}"
+        
+        # Now process the prompt with the previous conversation included
         if st.session_state.vector_store:
             result = st.session_state.qa_chain.invoke(prompt)
             response = f"{result['result']}"
         else:
             response = "Please upload a document first"
-    
-    st.session_state.messages.append({"role": "assistant", "content": response})
+        
+        # Append the chatbot's response
+        st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 # Display chat history
 for message in st.session_state.messages:
