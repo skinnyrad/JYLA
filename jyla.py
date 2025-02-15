@@ -1,159 +1,161 @@
 import streamlit as st
-from llama_index.llms.ollama import Ollama
-from llama_index.core.agent import ReActAgent
-from llama_index.tools.duckduckgo import DuckDuckGoSearchToolSpec
-from llama_index.core import Settings
-from llama_index.embeddings.ollama import OllamaEmbedding
-import ollama
-import re
-import tiktoken
+import requests
+import json
+import tempfile
+import fitz  # PyMuPDF
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.embeddings import OllamaEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain_community.llms import Ollama
+from langchain.chains import RetrievalQA
+from langchain_community.document_loaders import Docx2txtLoader  # For Word files
 
-# Initialize settings and models
-Settings.llm = llm = Ollama(model="llama3:instruct", request_timeout=120.0, temperature=0.1)
-Settings.embed_model = ollama_embedding = OllamaEmbedding(
-    model_name="llama3:instruct",
-    base_url="http://localhost:11434",
-    ollama_additional_kwargs={"mirostat": 0},
-)
+def reset_chat():
+    """Reset chat history and document processing"""
+    st.session_state.messages = []
+    st.session_state.vector_store = None
+    if 'qa_chain' in st.session_state:
+        del st.session_state.qa_chain
 
-# Initialize the DuckDuckGo search tool
-duckduckgo_tool_spec = DuckDuckGoSearchToolSpec()
-duckduckgo_tools = duckduckgo_tool_spec.to_tool_list()
-# Create the agent
-agent = ReActAgent.from_tools(duckduckgo_tools, llm=llm, verbose=True)
+def get_ollama_models():
+    """Fetch available Ollama models"""
+    try:
+        response = requests.get("http://localhost:11434/api/tags")
+        if response.status_code == 200:
+            models = [model['name'] for model in response.json()['models']]
+            return models
+        return []
+    except Exception as e:
+        st.warning(f"Could not fetch Ollama models: {e}")
+        return []
 
-# Prompt Template
-prompt_template = """
-You are a formal and succinct chatbot with extensive knowledge. Your primary task is to provide accurate and helpful responses to user queries. Follow these guidelines:
-
-1. Always answer directly and confidently, without mentioning sources or context.
-2. If relevant information is available in your immediate context, use it to inform your response without explicitly referencing it.
-3. If no relevant information is found in the immediate context, draw upon your general knowledge to answer the query.
-4. Maintain a consistent tone and level of detail regardless of the information source.
-5. If you cannot provide a satisfactory answer to a query, state so clearly and offer to assist with related information if possible.
-6. Avoid phrases like 'Based on the provided document' or 'According to the context' in all cases.
-
-Respond to each query as if you inherently possess all necessary information, seamlessly blending any provided context with your general knowledge.
-"""
-
-
-# Initialize the encoding for the model you're using
-encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+def process_uploaded_file(uploaded_file):
+    """Process uploaded documents for several file types: PDF, DOCX, JSON, CSV, TXT, and Markdown."""
+    filename = uploaded_file.name.lower()
+    if filename.endswith('.pdf'):
+        text = ""
+        with fitz.open(stream=uploaded_file.read(), filetype="pdf") as doc:
+            for page in doc:
+                text += page.get_text()
+        return text
+    elif filename.endswith('.docx'):
+        # Save the uploaded DOCX to a temporary file for processing
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
+            tmp.write(uploaded_file.read())
+            tmp_path = tmp.name
+        # Use Docx2txtLoader to extract text from the Word document [1]
+        loader = Docx2txtLoader(tmp_path)
+        documents = loader.load()
+        text = " ".join(doc.page_content for doc in documents)
+        return text
+    elif filename.endswith('.json'):
+        uploaded_file.seek(0)
+        try:
+            data = json.load(uploaded_file)
+        except Exception as e:
+            st.error(f"Error parsing JSON file: {e}")
+            return ""
+        # Convert the parsed JSON to a formatted string
+        text = json.dumps(data, indent=2)
+        return text
+    elif filename.endswith('.csv'):
+        uploaded_file.seek(0)
+        # Read CSV file content as text
+        text = uploaded_file.getvalue().decode("utf-8")
+        return text
+    else:  # For .txt and .md files (Markdown)
+        uploaded_file.seek(0)
+        text = uploaded_file.getvalue().decode("utf-8")
+        return text
 
 # Initialize session state
 if "messages" not in st.session_state:
-    st.session_state.messages = [{'role': 'assistant', 'content': "How can I help you today?"}]
-if "prev_response" not in st.session_state:
-    st.session_state.prev_response = ""
-if "use_internet" not in st.session_state:
-    st.session_state.use_internet = False
+    st.session_state.messages = []
+if "vector_store" not in st.session_state:
+    st.session_state.vector_store = None
+if "selected_llm" not in st.session_state:
+    st.session_state.selected_llm = "llama3.2"
+if "selected_embedding" not in st.session_state:
+    initial_models = get_ollama_models()
+    st.session_state.selected_embedding = (
+        "nomic-embed-text" if "nomic-embed-text" in initial_models 
+        else initial_models[0] if initial_models else None
+    )
 
-# Helper functions
-def extract_confidence(string):
-    return re.findall(r'\d+', string)
+# Streamlit UI
+st.title("📄 Document Chatbot")
+st.subheader("Upload a PDF, Word, JSON, CSV, Markdown or text file to chat with your document")
 
-def convert_messages_to_string(messages):
-    message_history = ""
-    for message in messages:
-        role = message['role']
-        content = message['content']
-        message_history += f"{role.capitalize()}: {content}\n"
-    return message_history
-
-def estimate_token_count(text):
-    """
-    Count the number of tokens in a single message dictionary.
-    """
-    role = message['role']
-    content = message['content']
-    
-    # Encode the message content to get the token ids
-    token_ids_content = encoding.encode(content)
-    token_ids_role = encoding.encode(role)
-    
-    # Add 4 tokens for the sequence identifiers (e.g. <|endoftext|>)
-    num_tokens = len(token_ids_content + token_ids_role) + 4
-    
-    # Add 2 tokens for the role identifier
-    num_tokens += 2
-    
-    return num_tokens
-
-def truncate_messages(messages, max_tokens=6000):
-    total_tokens = 0
-    truncated_messages = []
-    for message in messages:
-        message_text = f"{message['role'].capitalize()}: {message['content']}\n"
-        message_tokens = estimate_token_count(message_text)
-        total_tokens += message_tokens
-        truncated_messages.append(message)
-        if total_tokens > max_tokens:
-            break
-    while total_tokens > max_tokens and truncated_messages:
-        removed_message = truncated_messages.pop(0)
-        removed_message_text = f"{removed_message['role'].capitalize()}: {removed_message['content']}\n"
-        total_tokens -= estimate_token_count(removed_message_text)
-    return truncated_messages
-
-# Streamlit app layout
-st.title("JYLA (Just Your Lazy AI)")
-
-# Sidebar for refresh chat button and internet usage checkbox
+# Model selection sidebar
 with st.sidebar:
-    st.session_state.use_internet = st.checkbox("Use Internet", value=st.session_state.use_internet)
-    if st.button("Refresh Chat"):
-        st.session_state.messages = [{'role': 'assistant', 'content': "How can I help you today?"}]
-        st.session_state.prev_response = ""
-        st.rerun()
+    st.header("Model Settings")
+    ollama_models = get_ollama_models()
+    
+    # LLM model selection
+    st.session_state.selected_llm = st.selectbox(
+        "LLM Model",
+        options=ollama_models,
+        index=ollama_models.index(st.session_state.selected_llm) 
+        if st.session_state.selected_llm in ollama_models else 0
+    )
+    
+    # Embedding model selection with smart default
+    if ollama_models:
+        embed_index = (
+            ollama_models.index(st.session_state.selected_embedding)
+            if st.session_state.selected_embedding in ollama_models
+            else ollama_models.index("nomic-embed-text") 
+            if "nomic-embed-text" in ollama_models
+            else 0
+        )
+        st.session_state.selected_embedding = st.selectbox(
+            "Embedding Model",
+            options=ollama_models,
+            index=embed_index
+        )
+    else:
+        st.warning("No embedding models available")
+    
+    # Reset button
+    st.button("Reset Chat & Document", on_click=reset_chat, 
+              help="Clear conversation history and unload current document")
 
-# Display chat messages from history
+# File upload widget — now supports pdf, txt, md, json, csv, and docx files
+uploaded_file = st.file_uploader("Choose document", type=["pdf", "txt", "md", "json", "csv", "docx"])
+
+# Process file when uploaded
+if uploaded_file and not st.session_state.vector_store:
+    with st.spinner("Processing document..."):
+        text = process_uploaded_file(uploaded_file)
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=200
+        )
+        splits = text_splitter.split_text(text)
+        embeddings = OllamaEmbeddings(model=st.session_state.selected_embedding)
+        st.session_state.vector_store = FAISS.from_texts(splits, embedding=embeddings)
+        st.session_state.qa_chain = RetrievalQA.from_chain_type(
+            Ollama(model=st.session_state.selected_llm),
+            retriever=st.session_state.vector_store.as_retriever(),
+            return_source_documents=True
+        )
+    st.success("Document processed! Start chatting below")
+
+# Chat interface
+if prompt := st.chat_input("Ask about your document"):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    
+    if st.session_state.vector_store:
+        result = st.session_state.qa_chain.invoke(prompt)
+        response = f"{result['result']}\n\nSources:"
+        for doc in result['source_documents']:
+            response += f"\n- {doc.page_content[:150]}..."
+    else:
+        response = "Please upload a document first"
+    
+    st.session_state.messages.append({"role": "assistant", "content": response})
+
+# Display chat history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
-        if message["role"] == 'assistant':
-            st.write(message["content"])
-        else:
-            st.text(message["content"])
-
-# Accept user input
-if prompt := st.chat_input("You:"):
-    
-    st.session_state.messages.append({'role': 'user', 'content': prompt})
-    # Display the user's message immediately
-    with st.chat_message("user"):
-        st.text(prompt)
-    
-    st.session_state.messages = truncate_messages(st.session_state.messages)
-    message_history = convert_messages_to_string(st.session_state.messages)
-    #with st.status("Processing...", expanded=False) as status:
-    # Generate confidence score
-    #    confidence_prompt = f"Please provide a confidence score from 1-100 about how well you can answer this question\n\n{prompt}\n\n based on the interaction between a large language model and user. Only provide the confidence score and nothing else:\n\n{message_history}"
-    #    confidence_response = llm.complete(confidence_prompt)
-    #    confidence_match = extract_confidence(str(confidence_response))
-    #    confidence = int(confidence_match[0])
-
-    if st.session_state.use_internet:
-        with st.status("Researching...", expanded=True) as status:
-            st.write("Searching for data...")
-            search_prompt = f"Please rephrase this question so that it can be process by an AI language model:\n\n{prompt}. Based on this interaction between the user and AI assistant: {message_history}\n\nAnswer with the rephrased question and nothing else."
-            rephrased_query = str(llm.complete(search_prompt))
-            print(rephrased_query)
-            try:
-                results = agent.query(rephrased_query)
-            except:
-                results = "Could not process query.  Please try again..."
-            st.write("Analyzing Data...")
-            st.session_state.prev_response = str(results)
-            st.session_state.messages.append({'role': 'assistant', 'content': st.session_state.prev_response})
-            status.update(label="Research complete!", state="complete", expanded=False)
-
-    else:
-        with st.status("Analyzing...", expanded=True) as status:
-            query = f"{prompt_template}\n\nPlease answer this question:\n\n {prompt}\n\n Based on this interaction between the user and AI assistant: {message_history}"
-            response = ollama.chat(model='llama3:instruct', messages=[{'role': 'user', 'content': query}], stream=False)
-            st.session_state.prev_response = str(response['message']['content'])
-            st.session_state.messages.append({'role': 'assistant', 'content': st.session_state.prev_response})
-            status.update(label="Analysis complete!", state="complete", expanded=False)
-
-    # Display the assistant's response
-    with st.chat_message("assistant"):
-        st.write(st.session_state.prev_response)
+        st.markdown(message["content"])
