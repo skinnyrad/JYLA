@@ -120,26 +120,40 @@ with st.sidebar:
     st.button("Reset Chat & Document", on_click=reset_chat, 
               help="Clear conversation history and unload current document")
 
-# File upload widget — now supports pdf, txt, md, json, csv, and docx files
-uploaded_file = st.file_uploader("Choose document", type=["pdf", "txt", "md", "json", "csv", "docx"])
+# File upload widget now supports multiple files.
+uploaded_files = st.file_uploader(
+    "Choose document(s)",
+    type=["pdf", "txt", "md", "json", "csv", "docx"],
+    accept_multiple_files=True
+)
 
-# Process file when uploaded
-if uploaded_file and not st.session_state.vector_store:
-    with st.spinner("Processing document..."):
-        text = process_uploaded_file(uploaded_file)
+# Process files when uploaded (only if a vector store hasn't been created yet)
+if uploaded_files and not st.session_state.vector_store:
+    with st.spinner("Processing document(s)..."):
+        combined_text = ""
+        # Iterate over each uploaded file and concatenate its text
+        for uploaded_file in uploaded_files:
+            combined_text += "\n" + process_uploaded_file(uploaded_file)
+
+        # Use the existing text splitter to split the combined text into chunks
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
             chunk_overlap=200
         )
-        splits = text_splitter.split_text(text)
+        splits = text_splitter.split_text(combined_text)
+
+        # Generate embeddings and create the vector store
         embeddings = OllamaEmbeddings(model=st.session_state.selected_embedding)
         st.session_state.vector_store = FAISS.from_texts(splits, embedding=embeddings)
+
+        # Create the RAG chain with the selected LLM model and retriever
         st.session_state.qa_chain = RetrievalQA.from_chain_type(
             Ollama(model=st.session_state.selected_llm),
             retriever=st.session_state.vector_store.as_retriever(),
             return_source_documents=True
         )
-    st.success("Document processed! Start chatting below")
+    st.success("Documents processed! Start chatting below")
+
 
 # Chat Interface
 if prompt := st.chat_input("Ask about your document"):
