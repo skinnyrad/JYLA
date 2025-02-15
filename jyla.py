@@ -102,10 +102,8 @@ with st.sidebar:
     # Embedding model selection with smart default
     if ollama_models:
         embed_index = (
-            ollama_models.index(st.session_state.selected_embedding)
-            if st.session_state.selected_embedding in ollama_models
-            else ollama_models.index("nomic-embed-text") 
-            if "nomic-embed-text" in ollama_models
+            ollama_models.index("nomic-embed-text:latest") 
+            if "nomic-embed-text:latest" in ollama_models
             else 0
         )
         st.session_state.selected_embedding = st.selectbox(
@@ -113,8 +111,10 @@ with st.sidebar:
             options=ollama_models,
             index=embed_index
         )
+        
     else:
         st.warning("No embedding models available")
+
     
     # Reset button
     st.button("Reset Chat & Document", on_click=reset_chat, 
@@ -145,13 +145,13 @@ if uploaded_file and not st.session_state.vector_store:
 if prompt := st.chat_input("Ask about your document"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     
-    if st.session_state.vector_store:
-        result = st.session_state.qa_chain.invoke(prompt)
-        response = f"{result['result']}\n\nSources:"
-        for doc in result['source_documents']:
-            response += f"\n- {doc.page_content[:150]}..."
-    else:
-        response = "Please upload a document first"
+    # Show thinking status while processing
+    with st.spinner("Thinking..."):
+        if st.session_state.vector_store:
+            result = st.session_state.qa_chain.invoke(prompt)
+            response = f"{result['result']}"
+        else:
+            response = "Please upload a document first"
     
     st.session_state.messages.append({"role": "assistant", "content": response})
 
