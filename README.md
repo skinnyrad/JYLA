@@ -62,12 +62,51 @@
   - Sidebar for model selection and reset functionality.
   - Chat interface for user interaction.
 
-## Notes
+
+## Configuring File Upload Size
+
+This project uses Streamlit for its user interface, which by default limits file uploads to 200MB. However, we've configured the app to allow for larger file uploads (up to 2GB). Here's how you can adjust this setting:
+
+- **.streamlit Folder**: This folder contains configuration files for Streamlit. It's hidden by default due to the dot prefix.
+
+- **config.toml**: This file contains settings for the Streamlit server. Here's what you'll find:
+
+```
+[server]
+maxUploadSize = 2048  # This sets the maximum upload size to 2GB (2048 MB)
+```
+
+### Changing the File Size Limit
+
+To change the maximum file size for uploads:
+
+1. **Locate the Configuration File**: Navigate to the `.streamlit` folder in your project directory.
+
+2. **Edit `config.toml`**: Open the `config.toml` file with a text editor.
+
+3. **Modify `maxUploadSize`**:
+   - The `maxUploadSize` value is in megabytes (MB). 
+   - To increase the limit, change the number to your desired size in MB. For example, to set it to 5GB, you would use `maxUploadSize = 5120`.
+
+4. **Save and Restart**: Save the file and restart your Streamlit app for the changes to take effect.
+
+**Important Notes:**
+
+- **Memory Usage**: Be cautious when setting a very high limit as files are stored in the browser's memory. Large files might cause performance issues or crashes.
+
+- **Deployment**: If you're deploying this app, ensure that the `.streamlit/config.toml` file is included in your deployment package. For Streamlit Community Cloud, this means including it in your GitHub repository.
+
+- **Testing**: After changing the configuration, test your app locally and on the deployment platform to ensure the new upload size limit works as expected.
+
+By adjusting this setting, you can tailor the file upload capabilities of this project to meet your specific needs.
+
+
+## Project Notes
 
 - Ensure that the Ollama server is accessible at `localhost:11434`. If running on a different port or host, adjust the `requests.get` URL in `get_ollama_models()`.
 - The application uses session state to manage document processing and chat history, which persists across reruns of the Streamlit app.
 
-## Troubleshooting
+## Troubleshooting and FAQ
 
 - **Model Not Found**: If no models are listed, check if the Ollama server is running and accessible.
 - **File Processing Errors**: Ensure the file types are supported and the files are not corrupted.
