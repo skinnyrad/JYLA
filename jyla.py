@@ -4,9 +4,9 @@ import json
 import tempfile
 import fitz  # PyMuPDF
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import OllamaEmbeddings
+from langchain_ollama import OllamaEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain_community.llms import Ollama
+from langchain_ollama import OllamaLLM
 from langchain.chains import RetrievalQA
 from langchain_community.document_loaders import Docx2txtLoader  # For Word files
 
@@ -148,7 +148,7 @@ if uploaded_files and not st.session_state.vector_store:
 
         # Create the RAG chain with the selected LLM model and retriever
         st.session_state.qa_chain = RetrievalQA.from_chain_type(
-            Ollama(model=st.session_state.selected_llm),
+            OllamaLLM(model=st.session_state.selected_llm),
             retriever=st.session_state.vector_store.as_retriever(),
             return_source_documents=True
         )

@@ -21,22 +21,61 @@
 
 ### Installation
 
-1. **Install Python Packages**:
+**Create a python3 virtual environment**:
+
+*For MacOS/Linux:*
+
+```
+python3 -m venv venv
+source ./venv/bin/activate
+```
+
+*For Windows*
+
+```
+python -m venv venv
+.\venv\Scripts\activate
+```
+
+**Install Python Packages**:
    ```
-   pip install streamlit PyMuPDF langchain langchain_community requests
+   pip install -r requirements.txt
    ```
 
-2. **Ensure Ollama Server is Running**:
+After installing all the required libraries, we recommend you **restart your python3 virtual environment**.
+
+*For MacOS/Linux:*
+```
+deactivate
+source ./venv/bin/activate
+```
+
+*For Windows*
+
+```
+deactivate
+.\venv\Scripts\activate
+```
+
+**Ensure Ollama Server is Running**:
    - Download and install Ollama from [Ollama's official site](https://ollama.ai/).
    - Start the Ollama server:
-     ```
-     ollama serve
-     ```
+```
+ollama serve
+```
 
-3. **Run the Application**:
-   ```
-   streamlit run your_script_name.py
-   ```
+For embeddings, we recommend downloading nomic-embed-text and for the LLM model, we recommend llama3.2 or deepseek-r1:8b
+
+```
+ollama pull llama3.2
+ollama pull deepseek-r1:8b
+```
+
+
+**Run the Application**:
+```
+streamlit run your_script_name.py
+```
 
 ## Usage
 
@@ -49,18 +88,6 @@
    - JYLA will respond based on the document's content.
 
 4. **Reset Chat**: Use the reset button in the sidebar to clear the chat history and unload the current document.
-
-## Code Structure
-
-- **Imports**: Necessary libraries for Streamlit, document processing, and AI functionalities.
-- **Functions**:
-  - `reset_chat()`: Clears session state related to chat and document processing.
-  - `get_ollama_models()`: Fetches available models from the Ollama server.
-  - `process_uploaded_file()`: Handles different file types for document extraction.
-- **Streamlit UI**: 
-  - Title and file uploader setup.
-  - Sidebar for model selection and reset functionality.
-  - Chat interface for user interaction.
 
 
 ## Configuring File Upload Size
@@ -75,8 +102,6 @@ This project uses Streamlit for its user interface, which by default limits file
 [server]
 maxUploadSize = 2048  # This sets the maximum upload size to 2GB (2048 MB)
 ```
-
-### Changing the File Size Limit
 
 To change the maximum file size for uploads:
 
