@@ -20,6 +20,9 @@ from langchain_community.document_loaders import Docx2txtLoader  # For Word file
 def reset_chat():
     """Reset chat history and document processing"""
     st.session_state.messages = []
+
+
+def reset_doc():
     st.session_state.vector_store = None
     if "qa_chain" in st.session_state:
         del st.session_state.qa_chain
@@ -108,8 +111,10 @@ with st.sidebar:
         )
     else:
         st.warning("No embedding models available")
-    st.button("Reset Chat & Document", on_click=reset_chat, 
-              help="Clear conversation history and unload current document")
+    st.button("Reset Chat", on_click=reset_chat, 
+              help="Clear conversation history")
+    st.button("Reset and Embed Documents", on_click=reset_doc, 
+              help="Unload current document")
 
 uploaded_files = st.file_uploader(
     "Choose document(s)",
