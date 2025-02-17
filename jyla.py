@@ -157,25 +157,24 @@ if uploaded_files and not st.session_state.vector_store:
 
 # Chat Interface
 if prompt := st.chat_input("Ask about your document"):
-    with st.spinner("Thinking..."):
-        # Append the user's new question
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        
-        # If there's a previous conversation, append it to the prompt
-        if len(st.session_state.messages) > 1:
-            previous_conversation = "\n".join([f"{msg['role']}: {msg['content']}" for msg in st.session_state.messages[:-1]])
-            instructions = "Answer the question using the provided context.  If the answer isn't provided in the context, try to answer from your own knowledge but don't make up the answer if you don't know."
-            prompt = f"{instructions}\n{previous_conversation}\nUser: {prompt}"
-        
-        # Now process the prompt with the previous conversation included
-        if st.session_state.vector_store:
-            result = st.session_state.qa_chain.invoke(prompt)
-            response = f"{result['result']}"
-        else:
-            response = "Please upload a document first"
-        
-        # Append the chatbot's response
+    # Append and display the user's message immediately
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    # Create a new chat message container for the assistant reply
+    with st.chat_message("assistant"):
+        # Use the spinner inside the assistant's container so it appears at the bottom
+        with st.spinner("Thinking..."):
+            if st.session_state.vector_store:
+                result = st.session_state.qa_chain.invoke(prompt)
+                response = result["result"]
+            else:
+                response = "Please upload a document first"
+        # Display and record the assistant's response
+        st.markdown(response)
         st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 
 # Display chat history
