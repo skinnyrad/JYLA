@@ -2,6 +2,8 @@
 
 **JYLA** is a Streamlit application designed to facilitate interaction with documents through an AI chatbot. It supports various document types including PDF, DOCX, JSON, CSV, Markdown, and plain text, allowing users to ask questions about the document's content.
 
+![Jyla Main](./img/jyla-main.png)
+
 ## Features
 
 - **Document Processing**: Supports multiple file formats for document upload.

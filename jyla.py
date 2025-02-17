@@ -16,11 +16,19 @@ from langchain_community.vectorstores import FAISS
 from langchain_ollama import OllamaLLM
 from langchain.chains import RetrievalQA
 from langchain_community.document_loaders import Docx2txtLoader  # For Word files
+import re
+from time import sleep
+
+# Add this helper function to parse think tags
+def parse_think_tags(response):
+    """Extract content from <think> tags and clean final response"""
+    thoughts = re.findall(r'<think>(.*?)</think>', response, re.DOTALL)
+    clean_response = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL).strip()
+    return thoughts, clean_response
 
 def reset_chat():
     """Reset chat history and document processing"""
     st.session_state.messages = []
-
 
 def reset_doc():
     st.session_state.vector_store = None
@@ -157,8 +165,8 @@ if prompt := st.chat_input("Ask about your document"):
     
     # Create assistant response
     with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
-            if st.session_state.vector_store:
+        if st.session_state.vector_store:
+            with st.spinner("Processing your query...", show_time=True):
                 # Create new chain with current model each time
                 llm = OllamaLLM(model=st.session_state.selected_llm)
                 qa_chain = RetrievalQA.from_chain_type(
@@ -168,11 +176,35 @@ if prompt := st.chat_input("Ask about your document"):
                 )
                 result = qa_chain.invoke(prompt)
                 response = result["result"]
-            else:
-                response = "Please upload a document first"
-        st.markdown(response)
-
+                thoughts, final_answer = parse_think_tags(response)
+                
+                print(f"Thoughts: {thoughts}")
+                # Display reasoning process if available
+                if thoughts:
+                    with st.status("Reasoning", expanded=True) as status:
+                        # Split thoughts by newline
+                        thought_steps = thoughts[0].split('\n')
+                        for i, thought in enumerate(thought_steps, 1):
+                            if thought.strip():  # Only process non-empty lines
+                                st.write(f"**Thought**")
+                                st.write(thought.strip())
+                                st.write("")  # Add a blank line for readability
+                                sleep(1)
+                        status.update(label="Reasoning Complete", state="complete", expanded=False)
+        
+                st.write(final_answer)
+            
+            # Store only the clean answer in chat history
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": final_answer
+            })
+        else:
+            response = "Please upload a document first"
+            st.markdown(response)
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": response
+            })
     
-    st.session_state.messages.append({"role": "assistant", "content": response})
-    st.rerun()
-
+    #st.rerun()
