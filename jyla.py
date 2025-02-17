@@ -159,11 +159,19 @@ if prompt := st.chat_input("Ask about your document"):
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
             if st.session_state.vector_store:
-                result = st.session_state.qa_chain.invoke(prompt)
+                # Create new chain with current model each time
+                llm = OllamaLLM(model=st.session_state.selected_llm)
+                qa_chain = RetrievalQA.from_chain_type(
+                    llm,
+                    retriever=st.session_state.vector_store.as_retriever(),
+                    return_source_documents=True
+                )
+                result = qa_chain.invoke(prompt)
                 response = result["result"]
             else:
                 response = "Please upload a document first"
         st.markdown(response)
+
     
     st.session_state.messages.append({"role": "assistant", "content": response})
     st.rerun()
