@@ -178,7 +178,7 @@ if prompt := st.chat_input("Ask about your document"):
                 response = result["result"]
                 thoughts, final_answer = parse_think_tags(response)
                 
-                print(f"Thoughts: {thoughts}")
+                #print(f"Thoughts: {thoughts}") # Debugging: print thought tags
                 # Display reasoning process if available
                 if thoughts:
                     with st.status("Reasoning", expanded=True) as status:
